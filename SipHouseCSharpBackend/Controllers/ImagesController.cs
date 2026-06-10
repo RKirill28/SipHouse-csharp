@@ -39,6 +39,15 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
             ProjectId = image.ProjectId,
             Sort = image.Sort,
         };
+
+        if (newImage.IsMainImage == true)
+        {
+            var porjectImages = await _context.Images.Where(i => i.ProjectId == project.Id).ToListAsync();
+            foreach (var projectImage in porjectImages)
+            {
+                projectImage.IsMainImage = false;
+            }
+        }
         await _context.Images.AddAsync(newImage);
         await _context.SaveChangesAsync();
 
