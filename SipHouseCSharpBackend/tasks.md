@@ -11,11 +11,14 @@
 
 ## ImagesController:
 - [x] Create
-- [ ] Upload image and add fileId
+- [x] Upload image and add fileId
 - [x] Delete
 - [ ] Delete with file
-- [ ] Update
+- 
+- [x] Update
 - [x] Get by project id 
 - [x] File urls to file ids(guid)
 
+## File storing:
+- [ ] Saving file urls instead of ids in database - for nginx
 

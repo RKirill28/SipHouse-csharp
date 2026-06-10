@@ -37,7 +37,7 @@ public class ProjectController(SipHouseContext _context) : ControllerBase
 
     [HttpPost("add_pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult> AddPdf(IFormFile file, [FromForm(Name = "project_id")] long id)
+    public async Task<ActionResult> UploadPdfFile(IFormFile file, [FromForm(Name = "project_id")] long id)
     {
         if (file.ContentType != "application/pdf")
         {

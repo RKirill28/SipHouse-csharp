@@ -9,6 +9,8 @@ namespace SipHouseCSharpBackend.Controllers;
 [Route("/api/v1/images")]
 public class ImagesController(SipHouseContext _context) : ControllerBase
 {
+    private List<string> AllowedContentTypes = new List<string>(){"image/png", "image/jpeg", "image/jpg"};
+    
     [HttpGet("{project_id}")]
     [ProducesResponseType<IEnumerable<ReadImageDTO>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<ReadImageDTO>>> GetImagesByProject([FromRoute(Name = "project_id")] long projectId)
@@ -19,6 +21,40 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
                 .Select(ReadImageDTO.Projection)
                 .ToListAsync()
             );
+    }
+
+    [HttpPost("upload")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult<Guid>> UploadImageFile(IFormFile file, [FromForm] long imageId)
+    {
+        if (!AllowedContentTypes.Contains(file.ContentType))
+        {
+            return Problem("File is not supported", statusCode: StatusCodes.Status502BadGateway);
+        }
+        if (file == null | file.Length == 0)
+        {
+            return Problem(detail: "No file", statusCode: StatusCodes.Status502BadGateway);
+        }
+        
+        Image? image = await _context.Images.FirstOrDefaultAsync(i => i.Id == imageId);
+        if (image == null)
+        {
+            return Problem(detail: "Not found image by id", statusCode: StatusCodes.Status404NotFound);
+        }
+        
+        // TODO: Get base file path from config
+        Guid fileId = Guid.NewGuid();
+        string filePath = $"files/{fileId}.png";
+        // Uploading large file: https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0#upload-large-files-with-streaming
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        image.FileId = fileId;
+        await _context.SaveChangesAsync();
+        
+        return Ok(new {fileId = fileId});
     }
     
     [HttpPost]
@@ -95,6 +131,10 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
         {
             return Problem(detail: "Image not found", statusCode: StatusCodes.Status404NotFound);
         }
+
+        string filePath = $"files/{image.FileId}.png"; // TODO: file path from db instead of file id 
+        System.IO.File.Delete(filePath);
+        
         _context.Images.Remove(image);
         await _context.SaveChangesAsync();
         
