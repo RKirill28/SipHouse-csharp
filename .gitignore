@@ -55,3 +55,15 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+<<<<<<< HEAD
+=======
+
+
+files/
+*.png
+*.pdf
+*.jpg
+*.jpeg
+
+.idea/
+>>>>>>> 3787515 (init)
