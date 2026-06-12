@@ -8,8 +8,7 @@ public class Image
 {
     [Key]
     public long Id { get; set; }
-
-    public Guid? FileId { get; set; } = null;
+    public string? FilePath { get; set; } = null;
     [MaxLength(32)] public required string Name { get; set; }
     [MaxLength(256)] public required string Description { get; set; }
     public bool IsMainImage { get; set; } = false;

@@ -8,19 +8,19 @@ namespace SipHouseCSharpBackend.Controllers;
 
 [ApiController]
 [Route("/api/v1/projects")]
-public class ProjectController(SipHouseContext _context) : ControllerBase
+public class ProjectController(SipHouseContext _context, IConfiguration configuration) : ControllerBase
 {
     [HttpPost]
     [ProducesResponseType<ReadProjectDTO>(StatusCodes.Status201Created)]
-    public async Task<ActionResult<ReadProjectDTO>> CreateProject(CreateProjectDTO project)
+    public async Task<ActionResult> CreateProject(CreateProjectDTO project)
     {
-        Project newProject = new Project
+        var newProject = new Project
         {
             Images = new List<Image>(),
             Description = project.Description,
             IsPublic = project.IsPublic,
             Name = project.Name,
-            PdfFileIds = new List<Guid>(),
+            PdfFilePaths = new List<string>(),
             PriceDescription = project.PriceDescription,
             Price = project.Price
         };
@@ -39,32 +39,24 @@ public class ProjectController(SipHouseContext _context) : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult> UploadPdfFile(IFormFile file, [FromForm(Name = "project_id")] long id)
     {
-        if (file.ContentType != "application/pdf")
-        {
-            return BadRequest("File must be a pdf");
-        }
+        if (file.ContentType != "application/pdf") return BadRequest("File must be a pdf");
 
         if (file == null | file.Length == 0)
-        {
             return Problem(detail: "No file", statusCode: StatusCodes.Status502BadGateway);
-        }
 
-        Project? project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null)
-        {
             return Problem(detail: "No project by id", statusCode: StatusCodes.Status404NotFound);
-        }
 
         // TODO: Get base file path from config
-        Guid fileId = Guid.NewGuid();
-        string filePath = $"files/{fileId}.pdf";
-        // Uploading large file: https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0#upload-large-files-with-streaming
-        using (var stream = new FileStream(filePath, FileMode.Create))
-        {
+        var fileId = Guid.NewGuid();
+        string filesPath = configuration.GetValue<string>("StorageSettings:UploadFolder") ?? "files";
+        string pdfFilePath = $"{filesPath}/{fileId}.pdf";
+        // Uploading large files: https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0#upload-large-files-with-streaming
+        using (var stream = new FileStream(pdfFilePath, FileMode.Create))
             await file.CopyToAsync(stream);
-        }
         
-        project.PdfFileIds.Add(fileId);
+        project.PdfFilePaths.Add(pdfFilePath);
         await _context.SaveChangesAsync();
         
         return Ok(new {fileId = fileId});
@@ -72,31 +64,29 @@ public class ProjectController(SipHouseContext _context) : ControllerBase
     
     [HttpGet]
     [ProducesResponseType<List<ReadProjectDTO>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<ReadProjectDTO>>> GetProjects()
+    public async Task<ActionResult> GetProjects()
     {
        // Одним запросом через LEFT JOIN 
         return Ok(await _context.Projects.Select(ReadProjectDTO.Projection).ToListAsync());
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<ReadProjectDTO>> GetProject(long id)
+    [ProducesResponseType<ReadProjectDTO>(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetProject(long id)
     {
-        ReadProjectDTO? project = await _context.Projects
+        var project = await _context.Projects
             .Where(p => p.Id == id)
             .Select(ReadProjectDTO.Projection)
             .FirstOrDefaultAsync();
-        if (project == null)
-        {
-            return NotFound();
-        }
+        
+        if (project == null) return NotFound();
 
         return Ok(project);
     }
     
     [HttpGet("random")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ReadProjectDTO>>> GetRandom(int limit)
+    [ProducesResponseType<List<ReadProjectDTO>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetRandom(int limit)
     {
         if (limit <= 0) limit = 3;
         
@@ -113,11 +103,8 @@ public class ProjectController(SipHouseContext _context) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UpdateProject(long id, UpdateProjectDTO newProject)
     {
-        Project? project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null)
-        {
-            return NotFound();
-        }
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+        if (project == null) return NotFound();
 
         project.Name = newProject.Name ?? project.Name;
         project.Description = newProject.Description ?? project.Description;
@@ -133,13 +120,11 @@ public class ProjectController(SipHouseContext _context) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteProject(long id)
     {
-        Project? project = await _context.Projects
+        var project = await _context.Projects
             .Include(p => p.Images) // Берем картинки тоже, чтобы сработало каскадное удаление
             .FirstOrDefaultAsync(p => p.Id == id);
-        if (project == null)
-        {
-            return NotFound();
-        }
+        
+        if (project == null) return NotFound();
 
         _context.Projects.Remove(project);
         await _context.SaveChangesAsync();

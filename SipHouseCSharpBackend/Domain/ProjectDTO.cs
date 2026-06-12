@@ -15,16 +15,16 @@ public class CreateProjectDTO
 public class ReadProjectDTO : CreateProjectDTO
 {
     public long Id { get; set; }
-    public ICollection<ReadImageDTO> Images { get; set; } = null!;
-    public ICollection<Guid> PdfFileIds { get; set; } = null!;
-    
+    public required ICollection<ReadImageDTO> Images { get; set; }
+    public required ICollection<string> PdfFilePaths { get; set; }
+
     public static Expression<Func<Project, ReadProjectDTO>> Projection => p => new ReadProjectDTO()
     {
         Id = p.Id,
         Description = p.Description,
         IsPublic = p.IsPublic,
         Name = p.Name,
-        PdfFileIds = p.PdfFileIds,
+        PdfFilePaths = p.PdfFilePaths,
         Price = p.Price,
         PriceDescription = p.PriceDescription,
         Images = p.Images.Select(i => new ReadImageDTO
@@ -35,7 +35,7 @@ public class ReadProjectDTO : CreateProjectDTO
             Name = i.Name,
             ProjectId = i.ProjectId,
             Sort = i.Sort,
-            FileId = i.FileId
+            FilePath = i.FilePath
         }).ToList()
     };
 }

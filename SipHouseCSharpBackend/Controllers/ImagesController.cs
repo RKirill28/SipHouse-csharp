@@ -7,13 +7,13 @@ namespace SipHouseCSharpBackend.Controllers;
 
 [ApiController]
 [Route("/api/v1/images")]
-public class ImagesController(SipHouseContext _context) : ControllerBase
+public class ImagesController(SipHouseContext _context, IConfiguration configuration) : ControllerBase
 {
-    private List<string> AllowedContentTypes = new List<string>(){"image/png", "image/jpeg", "image/jpg"};
+    private readonly string[] _allowedContentTypes = ["image/png", "image/jpeg", "image/jpg"];
     
     [HttpGet("{project_id}")]
-    [ProducesResponseType<IEnumerable<ReadImageDTO>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<ReadImageDTO>>> GetImagesByProject([FromRoute(Name = "project_id")] long projectId)
+    [ProducesResponseType<List<ReadImageDTO>>(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetImagesByProject([FromRoute(Name = "project_id")] long projectId)
     {
         return Ok(
             await _context.Images
@@ -25,33 +25,28 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
 
     [HttpPost("upload")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<Guid>> UploadImageFile(IFormFile file, [FromForm] long imageId)
+    public async Task<ActionResult> UploadImageFile(IFormFile file, [FromForm] long imageId)
     {
-        if (!AllowedContentTypes.Contains(file.ContentType))
-        {
+        if (!_allowedContentTypes.Contains(file.ContentType)) 
             return Problem("File is not supported", statusCode: StatusCodes.Status502BadGateway);
-        }
-        if (file == null | file.Length == 0)
-        {
-            return Problem(detail: "No file", statusCode: StatusCodes.Status502BadGateway);
-        }
         
-        Image? image = await _context.Images.FirstOrDefaultAsync(i => i.Id == imageId);
-        if (image == null)
-        {
+        if (file == null | file.Length == 0) 
+            return Problem(detail: "No file", statusCode: StatusCodes.Status502BadGateway);
+        
+        var image = await _context.Images.FirstOrDefaultAsync(i => i.Id == imageId);
+        if (image == null) 
             return Problem(detail: "Not found image by id", statusCode: StatusCodes.Status404NotFound);
-        }
         
         // TODO: Get base file path from config
-        Guid fileId = Guid.NewGuid();
-        string filePath = $"files/{fileId}.png";
+        var fileId = Guid.NewGuid();
+        string filesPath = configuration.GetValue<string>("StorageSettings:UploadFolder") ?? "files";
+        string filePath = $"{filesPath}/{fileId}.png";
+        
         // Uploading large file: https://learn.microsoft.com/en-us/aspnet/core/mvc/models/file-uploads?view=aspnetcore-10.0#upload-large-files-with-streaming
         using (var stream = new FileStream(filePath, FileMode.Create))
-        {
             await file.CopyToAsync(stream);
-        }
 
-        image.FileId = fileId;
+        image.FilePath = filePath;
         await _context.SaveChangesAsync();
         
         return Ok(new {fileId = fileId});
@@ -61,13 +56,11 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
     [ProducesResponseType<ReadImageDTO>(StatusCodes.Status201Created)]
     public async Task<ActionResult> CreateImage(CreateImageDTO image)
     {
-        Project? project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == image.ProjectId);
+        var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == image.ProjectId);
         if (project == null)
-        {
             return Problem(detail: "Project not found", statusCode: StatusCodes.Status404NotFound);
-        }
         
-        Image newImage = new Image
+        var newImage = new Image
         {
             Description = image.Description,
             IsMainImage = image.IsMainImage,
@@ -80,9 +73,7 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
         {
             var porjectImages = await _context.Images.Where(i => i.ProjectId == project.Id).ToListAsync();
             foreach (var projectImage in porjectImages)
-            {
                 projectImage.IsMainImage = false;
-            }
         }
         await _context.Images.AddAsync(newImage);
         await _context.SaveChangesAsync();
@@ -95,27 +86,22 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
     [ProducesResponseType<ReadImageDTO>(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> UpdateImage(long id, UpdateImageDTO updateImage)
     {
-        Image? image = await _context.Images.FirstOrDefaultAsync(i => i.Id == id);
+        var image = await _context.Images.FirstOrDefaultAsync(i => i.Id == id);
         if (image == null)
-        {
             return Problem(detail: "Image not found", statusCode: StatusCodes.Status404NotFound);
-        }
 
-        IEnumerable<Image> projectImages =
-            await _context.Images.Where(i => i.ProjectId == image.ProjectId).ToListAsync();
+        var projectImages = await _context.Images
+            .Where(i => i.ProjectId == image.ProjectId)
+            .ToListAsync();
 
         image.Name = updateImage.Name ?? image.Name;
         image.Description = updateImage.Description ?? image.Description;
         image.Sort = updateImage.Sort ?? image.Sort;
 
         if (updateImage.IsMainImage == true)
-        {
-            foreach (var projectImage in projectImages)
-            {
+            foreach (var projectImage in projectImages) 
                 projectImage.IsMainImage = false;
-            }
-
-        } 
+        
         image.IsMainImage = updateImage.IsMainImage ?? image.IsMainImage;
         await _context.SaveChangesAsync();
         
@@ -123,17 +109,15 @@ public class ImagesController(SipHouseContext _context) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType<ReadImageDTO>(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteImage(long id)
     {
-        Image? image = await _context.Images.FirstOrDefaultAsync(i => i.Id == id);
-        if (image == null)
-        {
+        var image = await _context.Images.FirstOrDefaultAsync(i => i.Id == id);
+        if (image == null) 
             return Problem(detail: "Image not found", statusCode: StatusCodes.Status404NotFound);
-        }
 
-        string filePath = $"files/{image.FileId}.png"; // TODO: file path from db instead of file id 
-        System.IO.File.Delete(filePath);
+        if (image.FilePath != null)
+            System.IO.File.Delete(image.FilePath);
         
         _context.Images.Remove(image);
         await _context.SaveChangesAsync();

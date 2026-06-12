@@ -18,7 +18,7 @@ public class Project
 
     [Required] [MaxLength(255)] public required string PriceDescription { get; set; }
 
-    public ICollection<Guid> PdfFileIds { get; set; } = new List<Guid>();
+    public ICollection<string> PdfFilePaths { get; set; } = new List<string>();
 
     public bool IsPublic { get; set; } = false;
 

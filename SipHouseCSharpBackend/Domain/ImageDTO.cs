@@ -24,7 +24,7 @@ public class UpdateImageDTO
 public class ReadImageDTO : CreateImageDTO
 {
     public long Id { get; set; }
-    public required Guid? FileId { get; set; }
+    public string? FilePath { get; set; }
 
     public static Expression<Func<Image, ReadImageDTO>> Projection => i => new ReadImageDTO
     {
@@ -34,6 +34,6 @@ public class ReadImageDTO : CreateImageDTO
         Name = i.Name,
         ProjectId = i.ProjectId,
         Sort = i.Sort,
-        FileId = i.FileId
+        FilePath = i.FilePath
     };
 }
