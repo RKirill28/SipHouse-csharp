@@ -1,7 +1,7 @@
 using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SipHouseCSharpBackend.Domain;
+using SipHouseCSharpBackend.Contracts;
 using SipHouseCSharpBackend.Models;
 
 namespace SipHouseCSharpBackend.Controllers;
@@ -11,8 +11,8 @@ namespace SipHouseCSharpBackend.Controllers;
 public class ProjectController(SipHouseContext _context, IConfiguration configuration) : ControllerBase
 {
     [HttpPost]
-    [ProducesResponseType<ReadProjectDTO>(StatusCodes.Status201Created)]
-    public async Task<ActionResult> CreateProject(CreateProjectDTO project)
+    [ProducesResponseType<ReadProjectResponse>(StatusCodes.Status201Created)]
+    public async Task<ActionResult> CreateProject(CreateProjectRequest project)
     {
         var newProject = new Project
         {
@@ -31,7 +31,7 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
         // По стандартам REST API, оказывается метод создания объектов должен возвращать результат с заголовком Location
         // В Location указывается путь, по которому можно получить только что созданный объект
         // Однако возвращать сам объект - необязательно
-        var mapper = ReadProjectDTO.Projection.Compile();
+        var mapper = Mappings.ReadPojectResponseProjection.Compile();
         return Created($"/api/v1/projects/{newProject.Id}", mapper(newProject)); 
     }
 
@@ -63,20 +63,20 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
     }
     
     [HttpGet]
-    [ProducesResponseType<List<ReadProjectDTO>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<List<ReadProjectResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetProjects()
     {
        // Одним запросом через LEFT JOIN 
-        return Ok(await _context.Projects.Select(ReadProjectDTO.Projection).ToListAsync());
+        return Ok(await _context.Projects.Select(Mappings.ReadPojectResponseProjection).ToListAsync());
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType<ReadProjectDTO>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ReadProjectResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetProject(long id)
     {
         var project = await _context.Projects
             .Where(p => p.Id == id)
-            .Select(ReadProjectDTO.Projection)
+            .Select(Mappings.ReadPojectResponseProjection)
             .FirstOrDefaultAsync();
         
         if (project == null) return NotFound();
@@ -85,7 +85,7 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
     }
     
     [HttpGet("random")]
-    [ProducesResponseType<List<ReadProjectDTO>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<List<ReadProjectResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetRandom(int limit)
     {
         if (limit <= 0) limit = 3;
@@ -94,14 +94,14 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
             .Where(p => p.IsPublic) // Берем только публичные
             .OrderBy(p => EF.Functions.Random()) // Сортируем по рандому
             .Take(limit)
-            .Select(ReadProjectDTO.Projection)
+            .Select(Mappings.ReadPojectResponseProjection)
             .ToListAsync()
         );
     }
 
     [HttpPut("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> UpdateProject(long id, UpdateProjectDTO newProject)
+    public async Task<IActionResult> UpdateProject(long id, UpdateProjectRequest newProject)
     {
         var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
         if (project == null) return NotFound();

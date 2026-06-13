@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using SipHouseCSharpBackend.Domain;
+
+using SipHouseCSharpBackend.Contracts;
 using SipHouseCSharpBackend.Models;
 
 namespace SipHouseCSharpBackend.Controllers;
@@ -12,13 +13,13 @@ public class ImagesController(SipHouseContext _context, IConfiguration configura
     private readonly string[] _allowedContentTypes = ["image/png", "image/jpeg", "image/jpg"];
     
     [HttpGet("{project_id}")]
-    [ProducesResponseType<List<ReadImageDTO>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<List<ReadImageResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult> GetImagesByProject([FromRoute(Name = "project_id")] long projectId)
     {
         return Ok(
             await _context.Images
                 .Where(i => i.ProjectId == projectId)
-                .Select(ReadImageDTO.Projection)
+                .Select(Mappings.ReadImageResponseProjection)
                 .ToListAsync()
             );
     }
@@ -53,8 +54,8 @@ public class ImagesController(SipHouseContext _context, IConfiguration configura
     }
     
     [HttpPost]
-    [ProducesResponseType<ReadImageDTO>(StatusCodes.Status201Created)]
-    public async Task<ActionResult> CreateImage(CreateImageDTO image)
+    [ProducesResponseType<ReadImageResponse>(StatusCodes.Status201Created)]
+    public async Task<ActionResult> CreateImage(CreateImageRequest image)
     {
         var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == image.ProjectId);
         if (project == null)
@@ -78,13 +79,13 @@ public class ImagesController(SipHouseContext _context, IConfiguration configura
         await _context.Images.AddAsync(newImage);
         await _context.SaveChangesAsync();
 
-        var mapper = ReadImageDTO.Projection.Compile();
+        var mapper = Mappings.ReadImageResponseProjection.Compile();
         return Created($"/api/v1/images/{newImage.ProjectId}", mapper(newImage));
     }
 
     [HttpPut("{id}")]
-    [ProducesResponseType<ReadImageDTO>(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> UpdateImage(long id, UpdateImageDTO updateImage)
+    [ProducesResponseType<ReadImageResponse>(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UpdateImage(long id, UpdateImageRequest updateImage)
     {
         var image = await _context.Images.FirstOrDefaultAsync(i => i.Id == id);
         if (image == null)

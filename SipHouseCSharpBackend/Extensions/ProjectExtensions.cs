@@ -1,4 +1,3 @@
-using SipHouseCSharpBackend.Domain;
 using SipHouseCSharpBackend.Models;
 
 namespace SipHouseCSharpBackend.Extensions;
