@@ -31,3 +31,5 @@ public class UpdateProjectRequest
     public string? PriceDescription { get; set; } = null;
     public bool? IsPublic { get; set; } = null;
 }
+
+public record UploadPdfResponse(string FilePath);

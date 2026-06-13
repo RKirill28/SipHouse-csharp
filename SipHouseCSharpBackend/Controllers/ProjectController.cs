@@ -36,7 +36,7 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
     }
 
     [HttpPost("add_pdf")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<UploadPdfResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult> UploadPdfFile(IFormFile file, [FromForm(Name = "project_id")] long id)
     {
         if (file.ContentType != "application/pdf") return BadRequest("File must be a pdf");
@@ -59,7 +59,7 @@ public class ProjectController(SipHouseContext _context, IConfiguration configur
         project.PdfFilePaths.Add(pdfFilePath);
         await _context.SaveChangesAsync();
         
-        return Ok(new {fileId = fileId});
+        return Ok(new UploadPdfResponse(pdfFilePath));
     }
     
     [HttpGet]

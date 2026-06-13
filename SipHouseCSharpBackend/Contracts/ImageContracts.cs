@@ -27,5 +27,6 @@ public class ReadImageResponse
     public bool IsMainImage { get; set; } = false;
     public int Sort { get; set; }
     public long ProjectId { get; set; }
-
 }
+
+public record UploadImageResponse(string FilePath);

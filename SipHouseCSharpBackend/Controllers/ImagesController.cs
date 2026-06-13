@@ -25,7 +25,7 @@ public class ImagesController(SipHouseContext _context, IConfiguration configura
     }
 
     [HttpPost("upload")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType<UploadImageResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult> UploadImageFile(IFormFile file, [FromForm] long imageId)
     {
         if (!_allowedContentTypes.Contains(file.ContentType)) 
@@ -50,7 +50,7 @@ public class ImagesController(SipHouseContext _context, IConfiguration configura
         image.FilePath = filePath;
         await _context.SaveChangesAsync();
         
-        return Ok(new {fileId = fileId});
+        return Ok(new UploadImageResponse(filePath));
     }
     
     [HttpPost]
